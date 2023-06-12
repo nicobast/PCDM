@@ -1,16 +1,19 @@
 ## Pupil common drive model (PCDM) toolbox ########################
 A pupillometry toolbox for MATLAB.
 
+The current FORK by nicobast had some adaptations to make it run in the dataset mainly:
+
+<ul>
+<li>    fixed option to use interpolateBlink = 0 </li>
+<li>    use fixed filter from Burlingham 2022 in fitParametricPuRFfromData.m </li>
+<li>    value for velocity threshold based on sampling rate </li>
+<li>    commented out warning for long prediction window </li>
+<li>    fixed length when matrix predT2 < pupilAvg - gainFinder.m (line 121) </li>
+</ul>
+
+
 ## Authors ########################################################
 Charlie S. Burlingham &lt;<cs.burlingham@gmail.com>&gt; and Saghar Mirbagheri &lt;<sagharm@uw.edu>&gt;
-
-The current fork by nicobast had some adaptations to make it run in the dataset mainly:
-%    - fixed option to use interpolateBlink = 0
-%    - use fixed filter from Burlingham 2022 in fitParametricPuRFfromData.m
-%    - value for velocity threshold based on sampling rate
-%    - commented out warning for long prediction window
-%    - fixed length when matrix predT2 < pupilAvg - gainFinder.m (line 121)
-
 
 ## Usage ##########################################################
 To use the toolbox, navigate to PCDM directory in MATLAB, run the command addpath(genpath(pwd)). Then, create an input data struct “in” containing your eye data, task event timing, and trial types (see DataAnalysis.m for details on formatting) and run fitModel. The toolbox takes in the raw gaze position and pupil area time series. The code was tested on data collected with an EyeLink eye tracker, but should work with data from other systems. The function fitModel.m returns a struct “f” containing the model’s parameter estimates, prediction of the task-evoked pupil response, and goodness of fit (R^2), as well as plots of the model fits and parameter estimates for each run/block of data.
