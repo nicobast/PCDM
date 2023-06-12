@@ -50,24 +50,21 @@ function [d, op] = dataAnalysis(in)
 %
 
 %adaptations from original
+% -  downsampling needed  --> PHASE to be a scalar with value <= 0
+%       only works if function downsample is used
+%       without PHASE argument - see gainFinder line 110
 % - issues: 
 %       - in.predictionWindow>maxTrialLength (line 117) - compares
 %         time window in seconds to number of samples -->
 %         predictionWindow should be in samples (not time)
-% changes:
-%    - fixed option to use interpolateBlink = 0
-%    - use fixed filter from Burlingham 2022 in fitParametricPuRFfromData.m
-%    - value for velocity threshold based on sampling rate
-%    - commented out warning for long prediction window
-%    - fixed length when matrix predT2 < pupilAvg - gainFinder.m (line 121)
 
 %% Set options
-op.interpolateBlinks = 0; % 1, blink interpolation on; 0, interpolation off (use this if your input data is already blink interpolated)
-op.downsampleRate = 1; % default 5 - downsample rate for the deconvolution design matrix. Higher numbers makes code run faster, but shouldn't be set higher than Nyquist frequency.
+op.interpolateBlinks = 1; % 1, blink interpolation on; 0, interpolation off (use this if your input data is already blink interpolated)
+op.downsampleRate = 2; % default 5 - downsample rate for the deconvolution design matrix. Higher numbers makes code run faster, but shouldn't be set higher than Nyquist frequency.
 op.fitTimeseries = 0; % if you want to estimate gain based on the whole pupil time series, set to 1. To just estimate gain based just on the trial-average (per trial type), set to 0. If you're just fitting more than one overlapping trial type and you want to take into account variance shared between them, set this to 1
 
 in.putativeIRFdur = 4; % how long you think the saccade-locked pupil response is in seconds. User-defined, but 4 s is a good estimate according to our results and the literature
-in.predictionWindow = 0.65; % The time window you want to make the prediction for the TEPR, beyond the trial onset time (in seconds). Usually the max trial length, but can be shorter if you want.
+in.predictionWindow = 0.5; % The time window you want to make the prediction for the TEPR, beyond the trial onset time (in seconds). Usually the max trial length, but can be shorter if you want.
 
 %%further options - reduce magic numbers
 op.change_cutoff_by_samplingrate = 5; % (10) 10 is default for 1Khz sampling rate
@@ -77,7 +74,8 @@ op.blinkint_vel_thres_on = 4; % (4) velocity threshold of pupil offset detection
 op.blinkint_window_from_onset = 50; % (50) time in ms from zero looks for blink onset, offset
 op.blinkint_min_dur = 75; % (75) the minimum duration in ms required to form a valid region of data
 
-op.rel_vel_thres = floor(in.sampleRate{1}/40); %(8) see microsac - relative velocity threshold (8 SDs)
+op.velvec_method = 1; %(3) see velvec - different methods for sampling rates
+op.rel_vel_thres = 8; %(8) see microsac - relative velocity threshold
 op.min_sac_dur = 7; %(7) see microsac - minimal saccade duration
 
 
@@ -94,29 +92,16 @@ for ff = 1:numRuns
         in.pupilArea{ff}(aboveT) = 0; % set other blink regions that were not detected by EyeLink firmware to 0 as well
         in.pupilArea2 = blinkinterp(in.pupilArea{ff}',in.sampleRate{ff},op.blinkint_vel_thres_on,op.blinkint_vel_thres_on,op.blinkint_window_from_onset,op.blinkint_min_dur); % default options
     end
-
-    if op.interpolateBlinks == 0
-        in.pupilArea{ff}((isnan(in.pupilArea{ff}))) = 0; % set NaN regions to 0 for myBWfilter
-        in.pupilArea2 = transpose(in.pupilArea{ff});
-    end
     
+    disp(length(aboveT)) %diagnostic testing
     
     %% Band-pass filter pupil signal
     baseline = nanmean(in.pupilArea2); % get baseline first
     in.pupilArea3 = myBWfilter(in.pupilArea2,op.low_bandpass_filter_range,in.sampleRate{ff},'bandpass');
     d.pupilTS{ff} = in.pupilArea3; % save out timeseries
     
-
     %% Detect small saccades and microsaccades (method of Engbert & Mergenthaler 2006)
-    if in.sampleRate{ff} ==  500
-        typeVar1 = 3;
-    elseif in.sampleRate{ff} ==  1000
-        typeVar1 = 3;
-    else
-        typeVar1 = 2;
-    end
-    
-    vel = vecvel([in.xPos{ff} in.yPos{ff}], in.sampleRate{ff}, typeVar1); % compute eye velocity
+    vel = vecvel([in.xPos{ff} in.yPos{ff}], in.sampleRate{ff}, op.velvec_method); % compute eye velocity
     d.saccTimes{ff} = microsacc([in.xPos{ff} in.yPos{ff}], vel, op.rel_vel_thres , op.min_sac_dur); % detect (micro)saccade times based on eye velocity
     
     %% Estimate saccade-locked pupil response
@@ -141,8 +126,8 @@ for ff = 1:numRuns
     trialLengths = in.startInds{ff}(:,2)-in.startInds{ff}(:,1);
     maxTrialLength = max(trialLengths)+1; % samples
     
-    if in.predictionWindow > maxTrialLength/in.sampleRate{ff}
-        error('Prediction window must be shorter than max trial length')
+    if in.predictionWindow>maxTrialLength
+        error('Prediction window must be longer than max trial length')
     elseif maxTrialLength/in.sampleRate{ff} > in.predictionWindow*1.5 || maxTrialLength/in.sampleRate{ff} > 6
         warning('Your trials are quite long, which may cause slow drifts in arousal within a trial. Try shortening the prediction windowfirst and if that doesn''t help the model fits, you may need to fit a second gain in the second half of the trial to capture changes in arousal happening during the ISI.')
     end

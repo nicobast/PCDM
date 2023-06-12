@@ -28,13 +28,14 @@ function [k kCI] = fitK(saccs, samplingRate, plotFit)
 %               inter-saccadic interval
 %               - kCI, 95% confidence interval around estimate of k.
 
-if ieNotDefined('samplingRate')
-    samplingRate = 500; %Hz
-end
-
-if ieNotDefined('plotFit')
-    plotFit = 1; % plot fit
-end
+%does not seem to be defined
+% if ieNotDefined('samplingRate')
+%     samplingRate = 500; %Hz
+% end
+% 
+% if ieNotDefined('plotFit')
+%     plotFit = 1; % plot fit
+% end
 
 % concatenate data from different runs
 interSacIntervals = [];

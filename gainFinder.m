@@ -114,6 +114,12 @@ elseif op.fitTimeseries == 0
             predT2(kk,:) = downsample(predT,d.downsampleRate,1);
         end
         
+        %proposed fix of length when matrix predT2 is shorter than pupilAvg
+        if length(predT2(kk,:)') < length(ones(length(pupilAvg(kk,:)),1))
+            fixed_length = length(predT2(kk,:)');
+            pupilAvg = pupilAvg(:,1:fixed_length);
+        end
+        
         DM = [ones(length(pupilAvg(kk,:)),1), predT2(kk,:)'];
         sol = regress(pupilAvg(kk,:)',DM);
         

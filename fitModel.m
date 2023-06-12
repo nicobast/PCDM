@@ -1,4 +1,4 @@
-function [d,f] = fitModel(in)
+function [d,f,op] = fitModel(in)
 % fitModel.m
 %
 %     Cite: Burlingham C*, Mirbagheri S*, Heeger DJ (2022). Science
@@ -15,12 +15,13 @@ function [d,f] = fitModel(in)
 %              dataAnalysis.m for format and details).
 %
 %%
+plot_output = 0;
 
 % Load in data struct "in" (see dataAnalysis for format and details)
 [d, op] = dataAnalysis(in); % d is input structure
 
 % estimate inter-saccadic interval and parameter k
-[k, k_CI] = fitK(d.saccTimes, d.sampleRate, 1);
+[k, k_CI] = fitK(d.saccTimes, d.sampleRate, plot_output);
 
 % adjust saccade rate functions for estimated post-saccadic refractory period
 numRuns = size(d.sacIrf,1); % loop across runs
@@ -29,8 +30,9 @@ for ii = 1:numRuns
 end
 
 % estimate parametric linear filter from run-average saccade-locked pupil response
-IrfAvg = nanmean(d.sacIrf,1); % avg. saccade-locked IRF across all runs
-[parametricLinearFilter, params_PuRF, Rsq_PuRF, normFactor_PuRF] = fitParametricPuRFfromData(IrfAvg,d.sampleRate./d.downsampleRate,d.sampleRate,1);
+IrfAvg = nanmean(d.sacIrf,1); % correct for single run data
+% [parametricLinearFilter, params_PuRF, Rsq_PuRF, normFactor_PuRF] = fitParametricPuRFfromData(IrfAvg,d.sampleRate./d.downsampleRate,d.sampleRate,1);
+parametricLinearFilter = fitParametricPuRFfromData(IrfAvg,d.sampleRate./d.downsampleRate,d.sampleRate,plot_output);
 d.parametricLinearFilter = parametricLinearFilter;
 
 % fit and evaluate model parameters
@@ -49,6 +51,8 @@ for ii = 1:numRuns % loop across runs
 end
 
 % plot data and model fits
-plotFits(d,f,op);
+if plot_output == 1
+    plotFits(d,f,op);
+end
 
 end

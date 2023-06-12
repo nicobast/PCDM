@@ -1,4 +1,5 @@
-function [parametricLinearFilter, params, Rsq, normFactor] = fitParametricPuRFfromData(irfData,samplingRate,outSamplingRate,plotFit)
+function [parametricLinearFilter, params, Rsq] = fitParametricPuRFfromData(irfData,samplingRate,outSamplingRate,plotFit)
+% function [parametricLinearFilter, params, Rsq, normFactor] = fitParametricPuRFfromData(irfData,samplingRate,outSamplingRate,plotFit)
 % fitParametricPuRFfromData.m 
 %
 %     Cite: Burlingham C*, Mirbagheri S*, Heeger DJ (2022). Science 
@@ -33,23 +34,30 @@ params = fminsearch(@(x) objFunc(x(1),x(2)),x0); % optimize.
 % params(2) is tMin
 %params(1) = params(1).*2; % uncomment if you want to adjust width to "undeform" in a VERY adhoc way
 timeStep = 1000/outSamplingRate;
-impulseTime = 4000; % 4 seconds. this is an assumption used throughout, based on observation that saccade-locked purf goes back to baseline after 4 sec
+impulseTime = 4000; % (4000) 4 seconds. this is an assumption used throughout, based on observation that saccade-locked purf goes back to baseline after 4 sec
 time = 0:timeStep:impulseTime-1;
 parametricLinearFilter = -1.*(time.^params(1)).*exp(-params(1).*time./params(2)); % parametric form. gamma-erlang
 
 % just for compuing R^2, also compute the filter in the input timebase
 timeStep = 1000/samplingRate;
-impulseTime = 4000; % 4 seconds. this is an assumption used throughout, based on observation that saccade-locked purf goes back to baseline after 4 sec
+impulseTime = 4000; % (4000) 4 seconds. this is an assumption used throughout, based on observation that saccade-locked purf goes back to baseline after 4 sec
 time = 0:timeStep:impulseTime-1;
 parametricLinearFilterOrginalSamplingRate = -1.*(time.^params(1)).*exp(-params(1).*time./params(2)); % parametric form. gamma-erlang
+
+% Use fixed linear filter from Burlingham et al. 2022
+S = load('parametricLinearFilter.mat');
+parametricLinearFilter_fixed = S.parametricLinearFilter;
+parametricLinearFilter_fixed_downsampled = resample(parametricLinearFilter_fixed,samplingRate,500);
 
 
 %% Normalize the PuRF amplitude just for plotting. we will later renormalize it when we track gain over time
 normFactor = abs(min(parametricLinearFilter))./abs(min(irfData));
-parametricLinearFilter = parametricLinearFilter./normFactor; % nov 11, 2020: checked and it barely affects best-fit sigma value (neglibly) to normalize this or not
+%parametricLinearFilter = parametricLinearFilter./normFactor; % nov 11, 2020: checked and it barely affects best-fit sigma value (neglibly) to normalize this or not
+parametricLinearFilter = parametricLinearFilter_fixed_downsampled./normFactor; % nov 11, 2020: checked and it barely affects best-fit sigma value (neglibly) to normalize this or not
+parametricLinearFilterOrginalSamplingRate = parametricLinearFilterOrginalSamplingRate./normFactor;
+
 
 % compute R^2 of fit
-parametricLinearFilterOrginalSamplingRate = parametricLinearFilterOrginalSamplingRate./normFactor;
 SSres = sum((irfData-parametricLinearFilterOrginalSamplingRate).^2);
 SStot = sum((irfData-mean(irfData)).^2);
 Rsq = 1 - (SSres./SStot);
